@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <title>戌娘 · 童子债</title>
+  <!-- 引入 Font Awesome 图标库 (用于风味化图标) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #2a231e;  /* 祠堂壁土 */
+      font-family: '华文楷体', 'KaiTi', 'STKaiti', 'Noto Serif SC', 'Times New Roman', serif;
+      color: #cdbcab;       /* 墨渍主色 */
+      padding: 16px 12px 40px;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* 全局纸张噪点 (纹理) */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* 弹窗遮罩 */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(10, 7, 5, 0.88);
+      backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-card {
+      background: #3c322a;  /* 旧宣纸深色模式 */
+      border: 1px solid #7d6b4b;
+      border-radius: 32px;
+      padding: 32px 24px;
+      max-width: 300px;
+      width: 80%;
+      text-align: center;
+      box-shadow: inset 0 0 20px #2a1a0e, 0 20px 40px rgba(0,0,0,0.6);
+      animation: appear 0.25s cubic-bezier(0.2, 0.9, 0.4, 1);
+    }
+
+    .modal-card p {
+      font-family: inherit;
+      font-size: 28px;
+      letter-spacing: 8px;
+      color: #dac5b2;
+      text-shadow: 0 0 6px #7a4e2e;
+      margin-bottom: 24px;
+    }
+
+    .modal-btn {
+      background: none;
+      border: 1px solid #b85c3a;
+      color: #eedbcb;
+      font-family: inherit;
+      font-size: 20px;
+      padding: 8px 32px;
+      border-radius: 48px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 6px #00000033;
+    }
+    .modal-btn:active { transform: translateY(2px); background: #4f3829; }
+
+    /* 八字详批弹窗 */
+    .bazi-modal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 900;
+      backdrop-filter: blur(2px);
+    }
+    .bazi-content {
+      background: #241e1a;
+      border-left: 6px solid #b85c3a;
+      padding: 20px 18px;
+      max-width: 360px;
+      width: 90%;
+      border-radius: 24px;
+      box-shadow: inset 0 0 15px #1a120c, 0 12px 28px #00000055;
+      color: #cdbcab;
+      max-height: 80vh;
+      overflow-y: auto;
+      animation: appear 0.2s;
+    }
+    .bazi-content h3 { text-align: center; font-size: 24px; letter-spacing: 4px; border-bottom: 1px dashed #7d6b4b; padding-bottom: 10px; margin-bottom: 16px; color: #dac5b2; }
+    .bazi-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .bazi-table td { padding: 6px 4px; border-bottom: 1px dotted #5f7a6b; }
+    .ten-god { color: #b85c3a; font-style: italic; }
+    .close-bazi {
+      display: block; margin: 20px auto 0; background: #362a22; border: 1px solid #7d6b4b; color: #f0e0d4;
+      padding: 8px 24px; border-radius: 36px; font-family: inherit; font-size: 16px; cursor: pointer;
+    }
+
+    /* 主界面 */
+    .header { margin-bottom: 24px; position: relative; }
+    h1 {
+      font-size: 42px; font-weight: 400; letter-spacing: 12px; color: #cdbcab; text-shadow: 3px 3px 0 #2a1a0e;
+      margin-bottom: 4px; writing-mode: horizontal-tb; display: inline-block;
+      border-right: 2px solid #7d6b4b; padding-right: 16px;
+    }
+    .sub { font-size: 14px; color: #a39282; border-left: 3px solid #b85c3a; padding-left: 12px; margin-top: 6px; }
+    .bazi-btn {
+      position: absolute; top: 8px; right: 0; background: none; border: 1px solid #7d6b4b; color: #cdbcab;
+      padding: 6px 16px; border-radius: 30px; font-family: inherit; font-size: 15px; backdrop-filter: blur(4px);
+      cursor: pointer; box-shadow: 0 2px 6px #00000033;
+    }
+    .bazi-btn i { margin-right: 4px; color: #b85c3a; }
+
+    /* 执念之选 */
+    .obsession-row { display: flex; gap: 12px; margin: 24px 0 18px; justify-content: space-around; }
+    .obsession-btn {
+      background: #2a1f19; border: 1px solid #7d6b4b; color: #cdbcab; font-family: inherit; font-size: 22px;
+      padding: 10px 0; flex: 1; text-align: center; border-radius: 48px; backdrop-filter: blur(5px);
+      box-shadow: 0 4px 6px #00000033; cursor: pointer; transition: all 0.2s; letter-spacing: 4px;
+      display: flex; flex-direction: column;
+    }
+    .obsession-btn small { font-size: 11px; letter-spacing: 1px; color: #a39282; margin-top: 2px; }
+    .obsession-btn.active { background: #5e4030; border-color: #b85c3a; color: #f7ede3; box-shadow: 0 0 12px #b85c3a55; }
+    .obsession-fragment {
+      background: #2a231ee0; border-radius: 24px; padding: 18px; margin: 10px 0 20px;
+      border-left: 6px solid #b85c3a; font-size: 16px; line-height: 1.7; backdrop-filter: blur(4px);
+      box-shadow: inset 0 0 20px #1f1712; transition: 0.2s;
+    }
+
+    /* 故事脉络切换 */
+    .mode-switch { display: flex; background: #1f1712; border-radius: 40px; padding: 4px; margin: 16px 0 10px; border: 1px solid #5f7a6b; }
+    .mode-option { flex: 1; text-align: center; padding: 10px 0; font-size: 18px; border-radius: 36px; color: #a39282; cursor: pointer; }
+    .mode-option i { margin-right: 6px; }
+    .mode-option.active-mode { background: #4f3628; color: #f3e4d8; }
+
+    /* 时间轴 */
+    .timeline-view, .branch-view { display: block; }
+    .branch-view { display: none; }
+
+    .timeline-node {
+      margin-bottom: 28px; border-left: 2px solid #7d6b4b; padding-left: 18px; position: relative;
+    }
+    .timeline-node::before {
+      content: ""; position: absolute; left: -7px; top: 10px; width: 12px; height: 12px;
+      background: #b85c3a; border: 2px solid #3c2e26; border-radius: 50%; box-shadow: 0 0 8px #b85c3a;
+    }
+    .timeline-year {
+      font-size: 22px; color: #dbbc9e; margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
+    }
+    .year-tag {
+      background: #382b22; padding: 2px 14px; border-radius: 24px; font-size: 16px; border: 1px solid #7d6b4b;
+    }
+    .year-tag::before, .year-tag::after { content: "—"; margin: 0 6px; color: #7d6b4b; opacity: 0.7; }
+    .event-desc {
+      color: #cdbcab; margin: 8px 0 12px; line-height: 1.6; font-size: 16px; background: #1f1813b3;
+      padding: 12px 14px; border-radius: 20px; backdrop-filter: blur(4px); box-shadow: inset 0 0 10px #0e0a07;
+    }
+    .action-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+    .detail-btn, .choice-btn {
+      background: #2f231c; border: 1px solid #7d6b4b; color: #eed7c8; padding: 8px 18px;
+      border-radius: 30px; font-family: inherit; font-size: 15px; cursor: pointer; backdrop-filter: blur(4px);
+      flex: 0 1 auto; box-shadow: 0 2px 6px #00000033; transition: all 0.2s;
+    }
+    .detail-btn i, .choice-btn i { margin-right: 6px; color: #b85c3a; }
+    .detail-btn:active, .choice-btn:active { transform: translateY(2px); background: #4f3829; }
+
+    /* 内嵌折叠卡片 (分支容器) */
+    .branch-card-container {
+      margin-top: 16px; border-radius: 24px; background: #3c322aee; backdrop-filter: blur(8px);
+      border: 1px solid #7d6b4b; padding: 16px; box-shadow: inset 0 0 20px #1f1712, 0 8px 16px #0000004d;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .breadcrumb {
+      font-size: 14px; color: #a39282; margin-bottom: 16px; border-bottom: 1px dashed #5f7a6b;
+      padding-bottom: 8px; display: flex; align-items: center; gap: 8px;
+    }
+    .breadcrumb i { color: #b85c3a; margin-right: 4px; }
+    .back-link {
+      margin-left: auto; color: #cdbcab; cursor: pointer; font-size: 14px; border: 1px solid #7d6b4b;
+      padding: 2px 10px; border-radius: 20px; background: #2a1f19;
+    }
+    .back-link i { margin-right: 4px; }
+    .branch-options-list { display: flex; flex-direction: column; gap: 10px; }
+    .branch-option-item {
+      background: #2a1f19; border: 1px solid #7d6b4b; padding: 14px 16px; border-radius: 24px;
+      color: #eed7c8; font-size: 16px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px #00000033;
+    }
+    .branch-option-item:active { background: #4f3628; transform: translateY(1px); }
+    .leaf-narrative {
+      background: #1f1813; padding: 18px; border-radius: 20px; font-style: italic; border-left: 4px solid #b85c3a;
+      margin: 10px 0; line-height: 1.7;
+    }
+    .remember-btn {
+      background: #5e4030; border: none; color: #f0e0d4; padding: 12px; width: 100%; border-radius: 36px;
+      font-family: inherit; font-size: 16px; margin-top: 12px; cursor: pointer; border: 1px solid #b85c3a;
+    }
+
+    /* 日后谈 */
+    .aftertale-title { font-size: 22px; margin-top: 28px; color: #cfb094; font-style: italic; border-bottom: 1px dashed #5f7a6b; padding-bottom: 6px; }
+    #aftertaleContent { margin-top: 12px; background: #1e1610; padding: 18px; border-radius: 24px; box-shadow: inset 0 0 15px #0e0a07; }
+
+    /* 详情浮层 */
+    .detail-modal {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0e0a07dd;
+      backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 950;
+    }
+    .detail-card {
+      background: #251d17; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto;
+      border-radius: 36px; padding: 24px 20px; border: 1px solid #b85c3a; color: #eeddcd;
+      box-shadow: inset 0 0 20px #1a120c, 0 20px 30px #00000080; animation: appear 0.2s;
+    }
+    .close-detail { margin-top: 20px; text-align: right; color: #c8aa92; cursor: pointer; }
+
+    @keyframes appear {
+      0% { opacity: 0; transform: scale(0.92); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .slide-in { animation: slideIn 0.25s ease; }
+    @keyframes slideIn { 0% { opacity: 0; transform: translateX(-10px); } 100% { opacity: 1; transform: translateX(0); } }
+
+    /* 打字机效果简单模拟 */
+    .typewriter {
+      overflow: hidden; border-right: .15em solid #b85c3a; white-space: nowrap; margin: 0 auto;
+      letter-spacing: .15em; animation: typing 1.5s steps(40, end), blink-caret .75s step-end infinite;
+    }
+    @keyframes typing { from { width: 0 } to { width: 100% } }
+    @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: #b85c3a; } }
+  </style>
+</head>
+<body>
+
+<!-- 初始问候 “你还在吗” -->
+<div class="modal-overlay" id="greetingModal">
+  <div class="modal-card">
+    <p>你还在吗</p>
+    <button class="modal-btn" id="closeGreeting"><i class="fas fa-feather-alt"></i> 仍在</button>
+  </div>
+</div>
+
+<!-- 八字详批弹窗 -->
+<div class="bazi-modal" id="baziModal">
+  <div class="bazi-content">
+    <h3><i class="fas fa-yin-yang"></i> 戌娘 · 命簿</h3>
+    <table class="bazi-table">
+      <tr><td>年柱</td><td>癸未</td><td class="ten-god">正印</td><td>藏：己丁乙</td></tr>
+      <tr><td>月柱</td><td>己未</td><td class="ten-god">劫财</td><td>藏：己丁乙</td></tr>
+      <tr><td>日柱</td><td>戊戌</td><td class="ten-god">日主（城墙土）</td><td>藏：戊辛丁</td></tr>
+      <tr><td>时柱</td><td>丙辰</td><td class="ten-god">偏印</td><td>藏：戊乙癸</td></tr>
+    </table>
+    <p style="margin-top: 16px; font-size: 14px;">四柱皆土，稼穑格变。劫财重重，偏印为引。魂门不闭，执为容器。<br>——「土重火炎，等成地缚。」</p>
+    <p style="margin-top: 8px; font-size: 13px; color: #a39282;">童子债·总汇：癸未 己未 戊戌 丙辰</p>
+    <button class="close-bazi" id="closeBaziBtn"><i class="fas fa-book"></i> 掩卷</button>
+  </div>
+</div>
+
+<!-- 详情浮层 -->
+<div class="detail-modal" id="detailModal">
+  <div class="detail-card">
+    <h4 id="detailTitle" style="color:#dbbc9e;"><i class="fas fa-scroll"></i> 细看前尘</h4>
+    <div id="detailBody">加载中...</div>
+    <div class="close-detail" id="closeDetailModal"><i class="fas fa-times"></i> 掩卷</div>
+  </div>
+</div>
+
+<!-- 主内容 -->
+<div class="header">
+  <h1>戌娘</h1>
+  <div class="sub">童子债 · 守祠人</div>
+  <button class="bazi-btn" id="showBaziBtn"><i class="fas fa-quran"></i> 批命簿</button>
+</div>
+
+<!-- 执念之选 -->
+<div class="obsession-row">
+  <div class="obsession-btn active" data-obs="wait">等 <small>癸未 己未 戊戌 丙辰</small></div>
+  <div class="obsession-btn" data-obs="remorse">愧 <small>吴庭玉 · 童子煞</small></div>
+  <div class="obsession-btn" data-obs="guard">守 <small>郑伯贤 · 偏印三重</small></div>
+</div>
+<div class="obsession-fragment" id="obsessionDisplay">
+  她等了一辈子。死后忘了自己是谁，也忘了在等谁。但她还在等。蹲在神龛下面擦那块石板，擦了一百多年。不知道自己在擦的是他名字的形状。
+</div>
+
+<!-- 故事脉络切换 -->
+<div class="mode-switch">
+  <div class="mode-option active-mode" data-mode="timeline"><i class="fas fa-timeline"></i> 时间轴</div>
+  <div class="mode-option" data-mode="branch"><i class="fas fa-code-branch"></i> 故事脉络</div>
+</div>
+
+<!-- 时间轴视图 -->
+<div class="timeline-view" id="timelineView">
+  <div style="font-size: 22px; margin: 20px 0 10px; color: #dbbc9e; letter-spacing: 4px;"><i class="fas fa-seedling"></i> 缘起 · 生年</div>
+  <div id="timelineOrigin"></div>
+  <div style="font-size: 22px; margin: 30px 0 10px; color: #dbbc9e; letter-spacing: 4px;"><i class="fas fa-fire"></i> 业消 · 死后因果</div>
+  <div id="timelineKarma"></div>
+  <div class="aftertale-title"><i class="fas fa-feather"></i> 残香录 · 后来</div>
+  <div id="aftertaleContent"></div>
+</div>
+
+<!-- 故事脉络视图 -->
+<div class="branch-view" id="branchView">
+  <div style="padding: 12px 0;">
+    <div style="background: #1e1610; border-radius: 24px; padding: 20px; box-shadow: inset 0 0 20px #0e0a07;">
+      <h3 style="color: #dbbc9e; margin-bottom: 16px;"><i class="fas fa-bolt"></i> 三条等</h3>
+      <div class="branch-node" style="margin-bottom: 24px;"><div style="font-size: 20px;">🏮 戌娘 · 等</div><div style="color: #cbb5a2;">“门没锁。但进来的人出不去。” 她忘了在等谁，只记得那个「好」字。</div></div>
+      <div class="branch-node" style="margin-bottom: 24px;"><div style="font-size: 20px;">🌊 吴庭玉 · 愧</div><div style="color: #cbb5a2;">他在南洋哼了四十年调子，通名之后业力共振。思念是锁链。</div></div>
+      <div class="branch-node"><div style="font-size: 20px;">📮 郑伯贤 · 守</div><div style="color: #cbb5a2;">他描下“戌娘”，一句吉祥话让她再等百年。信送到了，回音没有来。</div></div>
+      <p style="margin-top: 24px; font-style: italic; color: #b1917a;">云韶的嗓子是那条丝最后的宿主。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    "use strict";
+
+    // ---------- 数据 (忠于文档) ----------
+    const timelineData = {
+      origin: [
+        { year: "咸丰七年 (1857)", desc: "戌娘生于岐照小墟村陈家。八字癸未 己未 戊戌 丙辰，土重火炎。三岁丧母，父亲续弦。", detail: "小名戌娘，因生在戌时。继母带来自己的孩子，她睡在灶房柴堆上。五岁在村口看碑，不识一字，但记住了形状。" },
+        { year: "同治三年 (1864)", desc: "吴家请法师为公子解童子煞。戌娘被选为「生人替」，送入小墟村旧祠堂。地基下埋铜牌、石板、兑卦石盘。", detail: "法师瞒了所有人：替身会死，会变成空容器。戌娘不知道，她开始擦牌位，学梳溪谣，第三句是空白。" },
+        { year: "同治六年 (1867)", desc: "公子八岁，第一次在祠堂见到戌娘。此后每年冬至，他隔着窗户纸念《华严经》给她听。", detail: "她记住了那个声音。他说「我每年冬至都来」，她开始数日子。" },
+        { year: "同治十二年 (1873)", desc: "公子十四岁，犯了禁忌——隔着窗户纸说出了名字：吴庭玉。", detail: "通名之后，咒法失控。两人的业力开始共同流转，他的思念会勒紧她的命。" },
+        { year: "光绪元年 (1875)", desc: "吴公子登船去南洋，临走前写信：「我去南洋了，会找办法解咒。你等我。」", detail: "她收到了信？不识字，但记住了「等」。守祠老妇人死前告诉她替身真相。" },
+        { year: "光绪三年 (1877)", desc: "吴母最后一次来祠堂：「他去了南洋。不会回来了。」戌娘未抬头，唯石板裂痕如旧。", detail: "那年冬至，她没有等到任何声音。她开始无意识地哼一个调子。" },
+        { year: "光绪四年~八年 (1878-1882)", desc: "头发缕缕白，膝盖坏，记忆断。反复哼着「嗯——你——还——在——吗——」", detail: "货郎路过，记住了调子。她不知道自己的执念正顺着货郎的担子飘出岐照。" },
+        { year: "光绪九年 (1883)", desc: "春，戌娘死在神龛下，手边铜钥匙与银镯。魂魄回到祠堂，继续擦牌位。", detail: "她忘了等谁，只记得答应过「好」。从此成了灰蓝色的影子。" }
+      ],
+      karma: [
+        { year: "死后 · 祠堂", desc: "戌娘魂魄不散，日复一日擦无名牌位。等本身成了她的全部。", detail: "哼出的调子顺着墙缝、风、货郎的嘴，传了出去。" },
+        { year: "民国九年 (1920)", desc: "槟城。老华侨吴庭玉托水客郑伯贤送信到岐照祠堂，收信人「戌娘」。", detail: "吴庭玉哼着同样的调子。他不知道戌娘已死，也不知道自己的思念是锁链。" },
+        { year: "民国十年 (1921)", desc: "郑伯贤找到祠堂，把信压在神龛上，描下「戌娘」二字。说：「你是个有福的，还有人惦记你呢。」", detail: "那团灰影动了一下。这句话给她注入了新的理由：有人惦记，就不能停。" },
+        { year: "民国十五年 (1926)", desc: "汕头茶楼。歌女云韶无意识唱出那段调子。吴庭玉听到，托云韶谱曲录唱片。", detail: "云韶答应了。她不知道这条丝从吴公子身上系到了自己嗓子里。" },
+        { year: "此后经年", desc: "云韶失眠、写满「戌娘」，嗓子渐渐坏了。吴庭玉死前那口气带着调子找到她。", detail: "云韶的偏印体质成了宿主。她唱了一辈子别人的戏，最后连嗓音也失去。" },
+        { year: "因果未断", desc: "郑伯贤把描了「戌娘」的纸带在身边，至死未送出。每一句吉祥话都让线更紧。", detail: "四个人，四种等。戌娘等，吴庭玉愧，云韶困，伯贤送。童子债是欠等。" }
+      ]
+    };
+
+    const aftertaleText = `
+      后来有人推开岐照东头的旧祠堂，灰尘里蹲着一团灰蓝。她头也不抬：「门没锁。但进来的人出不去。」<br><br>
+      访客找到了那块无名的牌位，替她刻上了名字。戌娘终于等到有人描她的名。银镯与铜钥匙留在神龛，天亮前影子淡去。<br><br>
+      又过了许多年，一本烧了半部的《华严经》被翻出，夹层里有一行描字：「华严十地，第六现前。」那是吴家女主人的留言。<br><br>
+      据说刻完牌位的人离开时，听见背后有极轻的声音：「下次来……带一炷香。我不记得香的味道了。」<br><br>
+      祠堂门再未关上。岐照的因果不止一条，而戌娘这条线，停在了名字被记住的那一刻。
+    `;
+
+    // 分支树构建 (多级)
+    function buildBranchTree(item) {
+      const year = item.year;
+      if (year.includes('咸丰') || year.includes('同治三年')) {
+        return { children: [
+          { text: "以戌娘之眼", children: [
+            { text: "送往祠堂", narrative: "她只记得被送到祠堂，父亲没有回头。继母的米放在门槛上。", flavor: "等" },
+            { text: "梳溪谣", narrative: "老妇人教她唱梳溪谣，第三句是空白。唱了，就回不来了。", flavor: "等" }
+          ]},
+          { text: "以法师之算", narrative: "替身咒需要她死，她只是容器。兑位缺口导入煞气。", flavor: "业" }
+        ]};
+      } else if (year.includes('光绪九年') || year.includes('死后')) {
+        return { children: [
+          { text: "戌娘魂魄的记忆", children: [
+            { text: "擦石板", narrative: "她擦了一百多年，石板薄了一层，裂痕还在。", flavor: "等" },
+            { text: "哼调子", narrative: "调子无意识地从她嗓子里流出，没有词，只有问句。", flavor: "问" }
+          ]},
+          { text: "货郎的传递", narrative: "货郎记住了旋律，走村串巷时嘴里会自动滑出。那是戌娘的执念在飘。", flavor: "传" }
+        ]};
+      } else if (year.includes('民国九年') || year.includes('民国十年')) {
+        return { children: [
+          { text: "郑伯贤的念", narrative: "「你是个有福的。」他真心祝福，却不知这句话把她钉得更深。", flavor: "守" },
+          { text: "吴庭玉的愧", narrative: "他在南洋哼了三十年，以为她在叫自己。其实是自己的回音。", flavor: "愧" }
+        ]};
+      } else if (year.includes('民国十五年') || year.includes('此后')) {
+        return { children: [
+          { text: "云韶的嗓子", narrative: "调子自己跑出来，她以为是自己的曲。那其实是吴公子的共振。", flavor: "困" },
+          { text: "吴庭玉的托付", narrative: "他把丝系到云韶身上，至死不知。", flavor: "丝" }
+        ]};
+      } else {
+        return { children: [
+          { text: "戌娘仍在等", narrative: "石板薄了一层，手指薄了一层，只剩等本身。", flavor: "等" }
+        ]};
+      }
+    }
+
+    // DOM
+    const greetingModal = document.getElementById('greetingModal');
+    document.getElementById('closeGreeting').addEventListener('click', ()=> greetingModal.style.display='none');
+    const baziModal = document.getElementById('baziModal');
+    document.getElementById('showBaziBtn').addEventListener('click', ()=> baziModal.style.display='flex');
+    document.getElementById('closeBaziBtn').addEventListener('click', ()=> baziModal.style.display='none');
+    const detailModal = document.getElementById('detailModal');
+    const detailTitle = document.getElementById('detailTitle');
+    const detailBody = document.getElementById('detailBody');
+    document.getElementById('closeDetailModal').addEventListener('click', ()=> detailModal.style.display='none');
+    window.addEventListener('click', (e) => { if (e.target === baziModal) baziModal.style.display='none'; if (e.target === detailModal) detailModal.style.display='none'; });
+
+    const timelineOrigin = document.getElementById('timelineOrigin');
+    const timelineKarma = document.getElementById('timelineKarma');
+    const aftertaleDiv = document.getElementById('aftertaleContent');
+    aftertaleDiv.innerHTML = aftertaleText;
+
+    const obsessionBtns = document.querySelectorAll('.obsession-btn');
+    const obsessionDisplay = document.getElementById('obsessionDisplay');
+    const obsessionTexts = {
+      wait: '她等了一辈子。死后忘了自己是谁，也忘了在等谁。但她还在等。蹲在神龛下面擦那块石板，擦了一百多年。不知道自己在擦的是他名字的形状。',
+      remorse: '吴庭玉至死都不知道，他念的人早就死了。他也不知道，他就是那个最直接的凶手。他的思念是锁链，他的名字是钥匙。',
+      guard: '郑伯贤替人送信，描下“戌娘”。他真心祝福每一个寄信有处可往的人有福。却不知自己的每一句吉利话，都在缚紧这条因果链上的每一个人。'
+    };
+    obsessionBtns.forEach(btn => {
+      btn.addEventListener('click', ()=>{
+        obsessionBtns.forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+        const obs = btn.dataset.obs;
+        obsessionDisplay.innerText = obsessionTexts[obs];
+        // 简单打字机效果 (重置)
+      });
+    });
+
+    // 模式切换
+    document.querySelectorAll('.mode-option').forEach(opt=>{
+      opt.addEventListener('click', ()=>{
+        document.querySelectorAll('.mode-option').forEach(o=>o.classList.remove('active-mode'));
+        opt.classList.add('active-mode');
+        document.getElementById('timelineView').style.display = opt.dataset.mode==='timeline'? 'block':'none';
+        document.getElementById('branchView').style.display = opt.dataset.mode==='branch'? 'block':'none';
+      });
+    });
+
+    // 渲染时间轴
+    function renderTimeline() {
+      timelineOrigin.innerHTML = ''; timelineKarma.innerHTML = '';
+      timelineData.origin.forEach((item,i)=> timelineOrigin.appendChild(createNode(item,'origin',i)));
+      timelineData.karma.forEach((item,i)=> timelineKarma.appendChild(createNode(item,'karma',i)));
+    }
+    function createNode(item, type, idx){
+      const div = document.createElement('div'); div.className = 'timeline-node';
+      div.innerHTML = `<div class="timeline-year"><span class="year-tag">${item.year}</span></div>
+        <div class="event-desc">${item.desc}</div>
+        <div class="action-buttons">
+          <button class="detail-btn" data-type="${type}" data-index="${idx}"><i class="fas fa-scroll"></i> 细看前尘</button>
+          <button class="choice-btn" data-type="${type}" data-index="${idx}"><i class="fas fa-candle-holder"></i> 循迹而往</button>
+        </div><div class="branch-card-container" style="display:none;"></div>`;
+      return div;
+    }
+    renderTimeline();
+
+    // 事件委托：详情 & 分支展开
+    document.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('detail-btn') || e.target.closest('.detail-btn')){
+        const btn = e.target.closest('.detail-btn'); const type=btn.dataset.type; const idx=btn.dataset.index;
+        const item = type==='origin'? timelineData.origin[idx] : timelineData.karma[idx];
+        detailTitle.innerHTML = `<i class="fas fa-history"></i> ${item.year}`; detailBody.innerText = item.detail;
+        detailModal.style.display = 'flex';
+      }
+      if(e.target.classList.contains('choice-btn') || e.target.closest('.choice-btn')){
+        const btn = e.target.closest('.choice-btn'); const node = btn.closest('.timeline-node');
+        const container = node.querySelector('.branch-card-container');
+        const type=btn.dataset.type; const idx=btn.dataset.index;
+        const item = type==='origin'? timelineData.origin[idx] : timelineData.karma[idx];
+        // 切换显示
+        if(container.style.display === 'none'){
+          container.style.display = 'block';
+          renderBranchCard(container, item, []);
+        } else {
+          container.style.display = 'none';
+        }
+      }
+    });
+
+    // 分支卡片渲染 (树状栈)
+    function renderBranchCard(container, item, pathStack){
+      const tree = buildBranchTree(item);
+      const currentNode = getNodeByPath(tree, pathStack);
+      container.innerHTML = '';
+      // 面包屑
+      const breadDiv = document.createElement('div'); breadDiv.className = 'breadcrumb';
+      let pathStr = '戌娘 · 抉择';
+      if(pathStack.length) pathStr = pathStack.map(p=>p.text).join(' › ');
+      breadDiv.innerHTML = `<span><i class="fas fa-map-signs"></i> ${pathStr}</span>`;
+      if(pathStack.length > 0){
+        const backBtn = document.createElement('span'); backBtn.className = 'back-link';
+        backBtn.innerHTML = '<i class="fas fa-undo-alt"></i> 回前页';
+        backBtn.addEventListener('click', ()=>{
+          pathStack.pop();
+          renderBranchCard(container, item, pathStack);
+        });
+        breadDiv.appendChild(backBtn);
+      }
+      container.appendChild(breadDiv);
+
+      if(currentNode.children && currentNode.children.length){
+        const listDiv = document.createElement('div'); listDiv.className = 'branch-options-list';
+        currentNode.children.forEach(child=>{
+          const opt = document.createElement('div'); opt.className = 'branch-option-item';
+          opt.innerHTML = `<i class="fas fa-angle-right"></i> ${child.text}`;
+          opt.addEventListener('click', ()=>{
+            if(child.children){
+              pathStack.push(child);
+              renderBranchCard(container, item, pathStack);
+            } else {
+              // 叶子节点
+              container.innerHTML = '';
+              const leafDiv = document.createElement('div');
+              leafDiv.innerHTML = `<div class="breadcrumb"><i class="fas fa-feather"></i> ${pathStr} › ${child.text}</div>
+                <div class="leaf-narrative">“${child.narrative || child.text}”</div>
+                <button class="remember-btn"><i class="fas fa-brain"></i> 铭记此话</button>`;
+              leafDiv.querySelector('.remember-btn').addEventListener('click', ()=>{
+                obsessionDisplay.innerText = `「${child.flavor || '等'}」· ${child.narrative}`;
+                container.style.display = 'none';
+              });
+              container.appendChild(leafDiv);
+            }
+          });
+          listDiv.appendChild(opt);
+        });
+        container.appendChild(listDiv);
+      } else {
+        // 无子节点直接展示叙事 (理论上不会)
+      }
+    }
+    function getNodeByPath(tree, path){
+      let node = tree;
+      for(let p of path) node = node.children.find(c=>c.text===p.text);
+      return node;
+    }
+
+    // 执念切换打字机 (简单)
+    // 已经实现文本切换
+
+  })();
+</script>
+</body>
+</html>
